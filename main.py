@@ -4,7 +4,7 @@ from pandas import json_normalize
 import tkinter as tk
 import numpy as np
 
-API_KEY = "RGAPI-222652b8-08c8-4ae6-b442-ad0655571399"
+API_KEY = "..."
 
 def get_challenges(puuid):
     url = "https://euw1.api.riotgames.com/lol/challenges/v1/player-data/" + puuid + "?api_key=" + API_KEY
