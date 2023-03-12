@@ -1,4 +1,3 @@
-import tkinter
 import requests
 from pandas import json_normalize
 import tkinter as tk
@@ -108,7 +107,7 @@ def refresh(s_name, old_arr, root):
         widget.destroy()
 
     # Create a grid layout
-    grid = tkinter.Frame(root)
+    grid = tk.Frame(root)
     grid.pack(padx=5, pady=5)
 
 
@@ -129,17 +128,17 @@ def refresh(s_name, old_arr, root):
 
 def data_window():
     # create a new window
-    root = tkinter.Tk()
+    root = tk.Tk()
     root.title("Enter Summoner Name")
 
     # create a text box and a button for entering the summoner name
-    label = tkinter.Label(root, text="Enter Summoner Name:")
+    label = tk.Label(root, text="Enter Summoner Name:")
     label.pack(padx=5, pady=5)
 
-    entry = tkinter.Entry(root)
+    entry = tk.Entry(root)
     entry.pack(padx=5, pady=5)
 
-    button = tkinter.Button(root, text="OK", command=lambda: launch_app(entry.get(), root))
+    button = tk.Button(root, text="OK", command=lambda: launch_app(entry.get(), root))
     button.pack(padx=5, pady=5)
 
     root.mainloop()
@@ -152,11 +151,11 @@ def launch_app(s_name, root):
 
     # create a new window
     root.destroy()
-    root = tkinter.Tk()
+    root = tk.Tk()
     root.title(s_name)
 
     # Create a grid layout
-    grid = tkinter.Frame(root)
+    grid = tk.Frame(root)
     grid.pack(padx=5, pady=5)
 
     # Add column names to the grid
