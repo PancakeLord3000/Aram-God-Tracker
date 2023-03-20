@@ -1,8 +1,8 @@
 # Aram-God-Tracker
-tracker for the challenges to get Aram God.
-
-this is a test script so you'll need to input your riot api key to use it.
-
-the code does send like 26 request to the riot api so watch out for that.
-
-the next step to make this app better would be to let players other than euw use it
+This is a tracker for the challenges that add points to aram authority.
+# Code
+The code for the app is in main.py.
+It uses the Riot Api and needs a valid key. (it calls the api about 26 times)
+# Usage
+The app for windows is in the folder Aram God Tracker.
+You could also just ```pip install -r requirements.txt``` and use the .py script.
