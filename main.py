@@ -4,7 +4,7 @@ import tkinter as tk
 import numpy as np
 import random
 
-API_KEY = "..."
+API_KEY = "..." # here's where you add your riot api key
 
 def get_challenges(puuid, s_server):
     url = f"https://{s_server}.api.riotgames.com/lol/challenges/v1/player-data/" + puuid + "?api_key=" + API_KEY
@@ -22,7 +22,7 @@ def get_challenges(puuid, s_server):
     
     # Filter
     df["challengeId_str"] = df["challengeId"].apply(lambda x: str(x)[:3])
-    #Take sub-sections
+    # Take sub-sections
     df = df[df["challengeId_str"] == "101"]
 
     return df
@@ -133,22 +133,22 @@ def refresh(s_name, old_arr, s_server, root):
     root.update()
 
 def data_window():
-    # create a new window
+    # Create a new window
     root = tk.Tk()
     root.title("Enter Summoner Name")
 
-    # create a text box and a button for entering the summoner name
+    # Create a text box and a button for entering the summoner name
     label = tk.Label(root, text="Enter Summoner Name:")
     label.pack(padx=5, pady=5)
 
     entry = tk.Entry(root)
     entry.pack(side=tk.LEFT, padx=5, pady=5)
 
-    # create a list of possible values for the dropdown menu
+    # Create a list of possible values for the dropdown menu
     values = ["EUW", "EUNE", "NA", "OCE", "KR", "LAN", "LAS"]
     arg_values = ["euw1", "eun1", "na1", "oc1", "kr", "la1", "la2"]
 
-    # create the dropdown menu and add it to the window
+    # Create the dropdown menu and add it to the window
     var = tk.StringVar(root)
     var.set(values[0])
     dropdown = tk.OptionMenu(root, var, *values)
@@ -158,7 +158,7 @@ def data_window():
     button = tk.Button(root, text="OK", command=lambda: user_exists(entry.get(), arg_values[values.index(var.get())], root))
     button.pack(side=tk.LEFT, padx=5, pady=5)
 
-    # run the main loop to display the window
+    # Run the main loop to display the window
     root.mainloop()
 
 def user_exists(s_name, s_server, root):
@@ -189,7 +189,7 @@ def launch_app(s_name, s_server, root):
     s_challenges = get_challenges(s_puuid, s_server)
     arr = format_array(s_challenges, s_server)
 
-    # create a new window
+    # Create a new window
     root.destroy()
     root = tk.Tk()
     root.title(s_name)
