@@ -6,6 +6,8 @@ import numpy as np
 import random
 import concurrent.futures
 import time
+import concurrent.futures
+import time
 
 API_KEY = "..." # here's where you add your riot api key
 
