@@ -1,11 +1,9 @@
 import requests
 from pandas import json_normalize
+import numpy as np
 import tkinter as tk
 from tkinter import ttk
-import numpy as np
 import random
-import concurrent.futures
-import time
 import concurrent.futures
 import time
 
