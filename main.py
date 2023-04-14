@@ -135,9 +135,8 @@ def format_array_update(df, old_arr, s_server):
     arr = format_array(df, s_server)
     former_add = arr.copy()
     for i in range(len(arr)):
-        if arr[i][4] != old_arr[i][4]:
-            if arr[i][4] != "DONE":
-                arr[i][4] = f"{arr[i][4]} + ({int(old_arr[i][4]) - int(arr[i][4])})"
+        if arr[i][3] != old_arr[i][3]:
+                arr[i][3] = f"{arr[i][3]} (+{int(old_arr[i][3]) - int(arr[i][3])})"
     return arr, former_add
 
 def add_summoner_name(summoner_name):
