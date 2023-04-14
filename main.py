@@ -9,6 +9,7 @@ import time
 
 API_KEY = "..." # here's where you add your riot api key
 
+# This function retrieves challenges data for a player
 def get_challenges(puuid, s_server):
     url = f"https://{s_server}.api.riotgames.com/lol/challenges/v1/player-data/" + puuid + "?api_key=" + API_KEY
 
@@ -28,6 +29,7 @@ def get_challenges(puuid, s_server):
 
     return df
 
+# This function retrieves a player's PUUID
 def get_puuid(summoner_name, s_server):
     url = f"https://{s_server}.api.riotgames.com/lol/summoner/v4/summoners/by-name/{summoner_name}" + "?api_key=" + API_KEY
     response = requests.get(url)
@@ -36,6 +38,7 @@ def get_puuid(summoner_name, s_server):
     df = json_normalize(data)
     return df["puuid"].iloc[0]
 
+# This function converts a numpy array containing float values to an array containing integer values
 def float_to_ints(arr):
     for i in range(arr.shape[0]):
         for j in range(arr.shape[1]):
@@ -45,6 +48,7 @@ def float_to_ints(arr):
                 pass
     return arr
 
+# This function calculates the progress of a player in completing their challenges
 def get_progress(arr):
     avrg = []
     for row in arr:
@@ -56,6 +60,7 @@ def get_progress(arr):
                 avrg.append(tmp)
     return calculate_average(avrg) * 100
 
+# This function calculates the average of a given array
 def calculate_average(float_array):
     total = 0
     count = 0
@@ -65,6 +70,7 @@ def calculate_average(float_array):
     average = total / count
     return average
 
+# This function retrieves challenge data for a given challenge id
 def get_challenge_data(id, s_server):
     url = f"https://{s_server}.api.riotgames.com/lol/challenges/v1/challenges/{id}/config" + "?api_key=" + API_KEY
     response = requests.get(url)
@@ -98,10 +104,11 @@ def get_challenge_data(id, s_server):
 
     return english_name, description, master_threshold
 
+# This function formats a given pandas dataframe to a numpy array with 6 columns
 def format_array(df, s_server):
     result = np.empty((0, 6), str)  # Initialize an empty numpy array to store the results with fixed shape
 
-    # Define a helper function to call get_challenge_data for a single row
+    # Helper function to call get_challenge_data for a single row
     def get_challenge_data_for_row(row):
         challenge_id = row.challengeId
         level = row.level
@@ -131,6 +138,7 @@ def format_array(df, s_server):
 
     return result
 
+# This function compare 2 arrays and adds the differences to the fourth row
 def format_array_update(df, old_arr, s_server):
     arr = format_array(df, s_server)
     former_add = arr.copy()
@@ -139,6 +147,7 @@ def format_array_update(df, old_arr, s_server):
                 arr[i][3] = f"{arr[i][3]} (+{int(old_arr[i][3]) - int(arr[i][3])})"
     return arr, former_add
 
+# This function adds valid names to the summoner_names.txt file
 def add_summoner_name(summoner_name):
     # check if summoner name already exists in file
     with open('summoner_names.txt', 'r') as file:
@@ -149,6 +158,7 @@ def add_summoner_name(summoner_name):
     with open('summoner_names.txt', 'a') as file:
         file.write(summoner_name + '\n')
 
+# This class replaces the tk.Entry we used before to add autocompletion suggestions
 class AutocompleteEntry(tk.Entry):
     def __init__(self, master, options, width=30, font=("Arial", 14), **kw):
         super().__init__(master, width=width, font=font, **kw)
@@ -218,6 +228,7 @@ class AutocompleteEntry(tk.Entry):
         self.insert(tk.END, selected)
         self.listbox.place_forget()
 
+# This function creates the window where a user enters a summoner name
 def data_window():
     # Create a new tkinter window
     window = tk.Tk()
@@ -259,7 +270,9 @@ def data_window():
     # Start the tkinter event loop
     window.mainloop()
 
+# This function verifies the existence of a summoner name
 def user_exists(s_name, s_server, root):
+    # check string format
     if not len(s_name) > 0 : 
         label_exists = False
         for child in root.winfo_children():
@@ -273,9 +286,11 @@ def user_exists(s_name, s_server, root):
 
         return 0
     
+    # check if call to api with the summoner name returns a valid user
     try:
         get_puuid(s_name, s_server)
         add_summoner_name((s_name))
+        # if the user exists we can launch the app
         launch_app(s_name, s_server, root)
     except Exception as e:
         # Basic error handling to user ui
@@ -308,6 +323,7 @@ def user_exists(s_name, s_server, root):
                     string_label.pack(pady=10)
     return 0
 
+# This function refreshes the display window 
 def refresh(s_name, old_arr, s_server, s_progress, root, first = False):
     # Setup
     s_puuid = get_puuid(s_name, s_server)
@@ -377,6 +393,7 @@ def refresh(s_name, old_arr, s_server, s_progress, root, first = False):
 
     root.mainloop()
 
+# This function launches the display window with a given summoner name that exists
 def launch_app(s_name, s_server, root_old):
     # Setup
     s_puuid = get_puuid(s_name, s_server)
