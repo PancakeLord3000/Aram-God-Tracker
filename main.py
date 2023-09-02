@@ -60,7 +60,7 @@ def get_progress(arr):
     #         else: 
     #             avrg.append(tmp)
     # return calculate_average(avrg) * 100
-    return arr[0][3]/arr[0][5]
+    return float(arr[0][3])/float(arr[0][5])*100
 
 # This function calculates the average of a given array
 def calculate_average(float_array):
@@ -134,6 +134,7 @@ def format_array(df, s_server):
         time.sleep(2) # just in case that we exceeded the api calls per second but not the api calls per minute
         with concurrent.futures.ThreadPoolExecutor() as executor:
             results = list(executor.map(get_challenge_data_for_row, df.itertuples(index=False)))
+        print(result)
 
     # Convert the list of results to a numpy array
     result = np.array(results)
@@ -417,7 +418,7 @@ def launch_app(s_name, s_server, root_old):
     # create a new window
     root_old.destroy()
     root = tk.Tk()
-    root.geometry("1400x625+100+100")  
+    root.geometry("1400x650+100+100")  
     root.title(s_name)
 
     refresh(s_name, arr, s_server, s_progress, root, first = True)
