@@ -50,15 +50,16 @@ def float_to_ints(arr):
 
 # This function calculates the progress of a player in completing their challenges
 def get_progress(arr):
-    avrg = []
-    for row in arr:
-        if row[0] != "ARAM Authority":
-            tmp = int(row[3])/int(row[5])
-            if tmp > 1:
-               avrg.append(1)
-            else: 
-                avrg.append(tmp)
-    return calculate_average(avrg) * 100
+    # avrg = []
+    # for row in arr:
+    #     if row[0] != "ARAM Authority":
+    #         tmp = int(row[3])/int(row[5])
+    #         if tmp > 1:
+    #            avrg.append(1)
+    #         else: 
+    #             avrg.append(tmp)
+    # return calculate_average(avrg) * 100
+    return arr[0][3]/arr[0][5]
 
 # This function calculates the average of a given array
 def calculate_average(float_array):
