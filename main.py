@@ -6,6 +6,7 @@ from tkinter import ttk
 import random
 import concurrent.futures
 import time
+import os
 
 API_KEY = "..." # here's where you add your riot api key
 
@@ -245,8 +246,19 @@ def data_window():
     frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
     # read summoner names from the file
-    with open("summoner_names.txt", "r") as f:
-        summoner_names = [line.strip() for line in f.readlines()]
+    file_name = 'summoner_names.txt'
+    if os.path.exists(file_name):
+        # If it exists, open it in read mode
+        with open(file_name, 'r') as file:
+            summoner_names = [line.strip() for line in file.readlines()]
+    else:
+        # If it doesn't exist, create and open it in write mode
+        with open(file_name, 'w') as file:
+            summoner_names = [line.strip() for line in file.readlines()]
+
+    # # read summoner names from the file
+    # with open("summoner_names.txt", "r") as f:
+    #     summoner_names = [line.strip() for line in f.readlines()]
 
     # Create the text entry
     entry = AutocompleteEntry(master=frame, options=summoner_names)
