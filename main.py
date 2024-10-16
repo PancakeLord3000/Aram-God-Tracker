@@ -1,430 +1,191 @@
-import requests
-from pandas import json_normalize
-import numpy as np
+import json
+import os
 import tkinter as tk
 from tkinter import ttk
-import random
+import requests
+import numpy as np
+from pandas import json_normalize
 import concurrent.futures
 import time
-import os
+import random
 
 API_KEY = "..." # here's where you add your riot api key
 
-# This function retrieves challenges data for a player
-def get_challenges(puuid, s_server):
-    url = f"https://{s_server}.api.riotgames.com/lol/challenges/v1/player-data/" + puuid + "?api_key=" + API_KEY
-
+def get_puuid(game_name, tag_line):
+    url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{game_name}/{tag_line}?api_key={API_KEY}"
     response = requests.get(url)
-
-    # Get the JSON data from the response
     data = response.json()
-    
-    # Print the JSON data in a legible format
-    data = data["challenges"]
-    df = json_normalize(data)
-    
-    # Filter
-    df["challengeId_str"] = df["challengeId"].apply(lambda x: str(x)[:3])
-    #Take sub-sections
-    df = df[df["challengeId_str"] == "101"]
+    return data["puuid"]
 
+def get_challenges(puuid):
+    url = f"https://euw1.api.riotgames.com/lol/challenges/v1/player-data/{puuid}?api_key={API_KEY}"
+    response = requests.get(url)
+    data = response.json()
+    df = json_normalize(data["challenges"])
+    df = df[df["challengeId"].astype(str).str[:3] == "101"]
     return df
 
-# This function retrieves a player's PUUID
-def get_puuid(summoner_name, s_server):
-    url = f"https://{s_server}.api.riotgames.com/lol/summoner/v4/summoners/by-name/{summoner_name}" + "?api_key=" + API_KEY
+def get_challenge_data(id):
+    url = f"https://euw1.api.riotgames.com/lol/challenges/v1/challenges/{id}/config?api_key={API_KEY}"
     response = requests.get(url)
-    # Get the JSON data from the response
     data = response.json()
-    df = json_normalize(data)
-    return df["puuid"].iloc[0]
-
-# This function converts a numpy array containing float values to an array containing integer values
-def float_to_ints(arr):
-    for i in range(arr.shape[0]):
-        for j in range(arr.shape[1]):
-            try:
-                arr[i, j] = int(arr[i, j])
-            except ValueError:
-                pass
-    return arr
-
-# This function calculates the progress of a player in completing their challenges
-def get_progress(arr):
-    # avrg = []
-    # for row in arr:
-    #     if row[0] != "ARAM Authority":
-    #         tmp = int(row[3])/int(row[5])
-    #         if tmp > 1:
-    #            avrg.append(1)
-    #         else: 
-    #             avrg.append(tmp)
-    # return calculate_average(avrg) * 100
-    return float(arr[0][3])/float(arr[0][5])*100
-
-# This function calculates the average of a given array
-def calculate_average(float_array):
-    total = 0
-    count = 0
-    for number in float_array:
-        total += number
-        count += 1
-    average = total / count
-    return average
-
-# This function retrieves challenge data for a given challenge id
-def get_challenge_data(id, s_server):
-    url = f"https://{s_server}.api.riotgames.com/lol/challenges/v1/challenges/{id}/config" + "?api_key=" + API_KEY
-    response = requests.get(url)
-    response_json = response.json()
-
-    # Extract the relevant information from the JSON
-    english_name = response_json['localizedNames']['en_GB']['name']
-    description = response_json['localizedNames']['en_GB']['description']
-    try:
-        master_threshold = response_json['thresholds']['MASTER']
-    except:
-        try:
-            master_threshold = response_json['thresholds']['DIAMOND']
-        except:
-            try:
-                master_threshold = response_json['thresholds']['PLATINUM']
-            except:
-                try:
-                    master_threshold = response_json['thresholds']['GOLD']
-                except:
-                    try:
-                        master_threshold = response_json['thresholds']['SILVER']
-                    except:
-                        try:
-                            master_threshold = response_json['thresholds']['BRONZE']
-                        except:
-                            try:
-                                master_threshold = response_json['thresholds']['IRON']
-                            except:
-                                master_threshold = ""
+    
+    english_name = data['localizedNames']['en_GB']['name']
+    description = data['localizedNames']['en_GB']['description']
+    thresholds = ['MASTER', 'DIAMOND', 'PLATINUM', 'GOLD', 'SILVER', 'BRONZE', 'IRON']
+    
+    for threshold in thresholds:
+        if threshold in data['thresholds']:
+            master_threshold = data['thresholds'][threshold]
+            break
+    else:
+        master_threshold = ""
 
     return english_name, description, master_threshold
 
-# This function formats a given pandas dataframe to a numpy array with 6 columns
-def format_array(df, s_server):
-    result = np.empty((0, 6), str)  # Initialize an empty numpy array to store the results with fixed shape
-
-    # Helper function to call get_challenge_data for a single row
+def format_array(df):
     def get_challenge_data_for_row(row):
         challenge_id = row.challengeId
         level = row.level
         value = row.value
-        # if you just call time.sleep(n) then all the calls to get_challenge_data_for_row will wait n seconds and then execute at the same time
-        wait_time = random.uniform(0.5, 2) # generates a random float between 0.5 and 2
-        time.sleep(wait_time) # then wait it
-        english_name, description, master_threshold = get_challenge_data(challenge_id, s_server)
-        done_or_not = max(0, int(master_threshold - value))
+        wait_time = random.uniform(0.5, 2)
+        time.sleep(wait_time)
+        english_name, description, master_threshold = get_challenge_data(challenge_id)
+        done_or_not = max(0, int(master_threshold) - int(value))
         if done_or_not == 0:
             done_or_not = "DONE"
         return [english_name, description, level, int(value), done_or_not, int(master_threshold)]
 
-    # Use ThreadPoolExecutor to asynchronously call get_challenge_data for each row
-    result = []
-    try:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(get_challenge_data_for_row, df.itertuples(index=False)))
-    except Exception as e:
-        print("An exception of type {0} occurred: {1}\nTrying again...".format(type(e).__name__, str(e)))
-        time.sleep(2) # just in case that we exceeded the api calls per second but not the api calls per minute
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(get_challenge_data_for_row, df.itertuples(index=False)))
-        print(result)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(get_challenge_data_for_row, df.itertuples(index=False)))
 
-    # Convert the list of results to a numpy array
-    result = np.array(results)
+    return np.array(results)
 
-    return result
+def get_progress(arr):
+    return float(arr[0][3]) / float(arr[0][5]) * 100
 
-# This function compare 2 arrays and adds the differences to the fourth row
-def format_array_update(df, old_arr, s_server):
-    arr = format_array(df, s_server)
-    former_add = arr.copy()
-    for i in range(len(arr)):
-        if arr[i][3] != old_arr[i][3]:
-                arr[i][3] = f"{arr[i][3]} (+{int(old_arr[i][3]) - int(arr[i][3])})"
-    return arr, former_add
+class ChallengeTrackerApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("LoL Challenge Tracker")
+        self.master.geometry("1000x650")
 
-# This function adds valid names to the summoner_names.txt file
-def add_summoner_name(summoner_name):
-    # check if summoner name already exists in file
-    with open('summoner_names.txt', 'r') as file:
-        if summoner_name in file.read():
-            return
+        self.create_widgets()
+        self.load_previous_searches()
 
-    # append summoner name to file
-    with open('summoner_names.txt', 'a') as file:
-        file.write(summoner_name + '\n')
+    def create_widgets(self):
+        self.frame = ttk.Frame(self.master, padding="10")
+        self.frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.master.columnconfigure(0, weight=1)
+        self.master.rowconfigure(0, weight=1)
 
-# This class replaces the tk.Entry we used before to add autocompletion suggestions
-class AutocompleteEntry(tk.Entry):
-    def __init__(self, master, options, width=30, font=("Arial", 14), **kw):
-        super().__init__(master, width=width, font=font, **kw)
+        ttk.Label(self.frame, text="Summoner Name:").grid(column=0, row=0, sticky=tk.W)
+        self.summoner_name = tk.StringVar()
+        self.summoner_entry = ttk.Combobox(self.frame, width=30, textvariable=self.summoner_name)
+        self.summoner_entry.grid(column=1, row=0, sticky=(tk.W, tk.E))
 
-        self.options = options
+        ttk.Label(self.frame, text="Tag Line:").grid(column=0, row=1, sticky=tk.W)
+        self.tag_line = tk.StringVar()
+        self.tag_entry = ttk.Combobox(self.frame, width=30, textvariable=self.tag_line)
+        self.tag_entry.grid(column=1, row=1, sticky=(tk.W, tk.E))
 
-        # create a listbox to display suggestions
-        self.listbox = tk.Listbox(master, width=30)
-        self.listbox.bind("<Button-1>", self.on_select)
-
-        # bind events to update the listbox
-        self.bind("<KeyRelease>", self.on_key_release)
-        self.bind("<Up>", self.on_up)
-        self.bind("<Down>", self.on_down)
-
-    def on_key_release(self, event):
-        # clear the listbox and reset the options
-        self.listbox.delete(0, tk.END)
-        self.matches = []
-        text = self.get()
-
-        # get matches for the current text
-        for option in self.options:
-            if text.lower() in option.lower():
-                self.matches.append(option)
-
-        # update the listbox with matches
-        for match in self.matches:
-            self.listbox.insert(tk.END, match)
-
-        if self.matches:
-            self.listbox.place(x=self.winfo_x(), y=self.winfo_y() + self.winfo_height())
-        else:
-            self.listbox.place_forget()
-
-    def on_up(self, event):
-        if self.listbox.curselection() == ():
-            index = 'end'
-        else:
-            index = self.listbox.curselection()[0]
-        if index == '0':
-            self.listbox.selection_clear(0, 'end')
-            self.icursor('end')
-            return
-        self.listbox.selection_clear(0, 'end')
-        self.listbox.activate(int(index) - 1)
-        self.listbox.selection_set(int(index) - 1, 'end')
-        self.icursor('end')
-
-    def on_down(self, event):
-        if self.listbox.curselection() == ():
-            index = '-1'
-        else:
-            index = self.listbox.curselection()[0]
-        if index == tk.END:
-            self.listbox.selection_clear(0, 'end')
-            self.icursor('end')
-            return
-        self.listbox.selection_clear(0, 'end')
-        self.listbox.activate(int(index) + 1)
-        self.listbox.selection_set(int(index) + 1, 'end')
-        self.icursor('end')
-
-    def on_select(self, event):
-        selected = self.listbox.get(self.listbox.curselection())
-        self.delete(0, tk.END)
-        self.insert(tk.END, selected)
-        self.listbox.place_forget()
-
-# This function creates the window where a user enters a summoner name
-def data_window():
-    # Create a new tkinter window
-    window = tk.Tk()
-    window.geometry("600x225")
-    window.title("Aram God Tracker")
-
-    # Create a label
-    label = tk.Label(window, text="Enter Summoner Name", font=("Arial", 16))
-    label.pack(pady=10)
-
-    # Create a frame to hold the text entry, dropdown menu, and button
-    frame = tk.Frame(window)
-    frame.pack(fill=tk.BOTH, expand=True, pady=10)
-
-    # read summoner names from the file
-    file_name = 'summoner_names.txt'
-    if os.path.exists(file_name):
-        # If it exists, open it in read mode
-        with open(file_name, 'r') as file:
-            summoner_names = [line.strip() for line in file.readlines()]
-    else:
-        # If it doesn't exist, create and open it in write mode
-        with open(file_name, 'w') as file:
-            summoner_names = [line.strip() for line in file.readlines()]
-
-    # # read summoner names from the file
-    # with open("summoner_names.txt", "r") as f:
-    #     summoner_names = [line.strip() for line in f.readlines()]
-
-    # Create the text entry
-    entry = AutocompleteEntry(master=frame, options=summoner_names)
-    entry.pack(side=tk.LEFT, padx=10)
-    tk.Entry()
-    
-    # create a list of possible values for the dropdown menu
-    values = ["EUW", "EUNE", "NA", "OCE", "KR", "LAN", "LAS"]
-    arg_values = ["euw1", "eun1", "na1", "oc1", "kr", "la1", "la2"]
-
-    # Create the dropdown menu
-    dropdown_var = tk.StringVar(window)
-    dropdown_var.set(values[0])
-    dropdown = tk.OptionMenu(frame, dropdown_var, *values)
-    dropdown.config(width=len("EUW")+1, font=("Arial", 14))
-    dropdown.pack(side=tk.LEFT, padx=10)
-
-    # Create the OK button
-    ok_button = tk.Button(frame, text="Search", font=("Arial", 14), command=lambda: user_exists(entry.get(), arg_values[values.index(dropdown_var.get())], window))
-    ok_button.pack(side=tk.RIGHT, padx=10)
-
-    # Start the tkinter event loop
-    window.mainloop()
-
-# This function verifies the existence of a summoner name
-def user_exists(s_name, s_server, root):
-    # check string format
-    if not len(s_name) > 0 : 
-        label_exists = False
-        for child in root.winfo_children():
-            if isinstance(child, tk.Label) and child.cget("text") == "Incorrect name format":
-                label_exists = True
-                break
-
-        if not label_exists:
-            string_label = tk.Label(root, text="Incorrect name format")
-            string_label.pack(pady=10)
-
-        return 0
-    
-    # check if call to api with the summoner name returns a valid user
-    try:
-        get_puuid(s_name, s_server)
-        add_summoner_name((s_name))
-        # if the user exists we can launch the app
-        launch_app(s_name, s_server, root)
-    except Exception as e:
-        # Basic error handling to user ui
-        print("An exception of type {0} occurred: {1}".format(type(e).__name__, str(e)))
-        if str(type(e).__name__) == "KeyError":
-            label_exists = False
-            for child in root.winfo_children():
-                if isinstance(child, tk.Label) and child.cget("text") == "Please wait a while before using the app again":
-                    label_exists = True
-                    break
-
-            if not label_exists:
-                string_label = tk.Label(root, text="Please wait a while before using the app again")
-                string_label.pack(pady=10)
-        else:
-            random_num = random.random()
-            label_exists = False
-            for child in root.winfo_children():
-                if isinstance(child, tk.Label) and (child.cget("text") == "Summoner does not exist" or child.cget("text") == "SuMonn3r dOeS n0t ExIsT!"):
-                    label_exists = True
-                    break
-
-            if not label_exists:
-                if random_num < 0.1:
-                    string_label = tk.Label(root, text="SuMonn3r dOeS n0t ExIsT!")
-                    string_label.pack(pady=10)
+        self.search_button = ttk.Button(self.frame, text="Search", command=self.search_summoner)
+        self.search_button.grid(column=2, row=0, rowspan=2)
         
-                else:
-                    string_label = tk.Label(root, text="Summoner does not exist")
-                    string_label.pack(pady=10)
-    return 0
+        self.result_tree = ttk.Treeview(self.frame, columns=("name", "description", "rank", "points", "to_master"), show="headings")
+        self.result_tree.grid(column=0, row=2, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.frame.columnconfigure(1, weight=1)
+        self.frame.rowconfigure(2, weight=1)
 
-# This function refreshes the display window 
-def refresh(s_name, old_arr, s_server, s_progress, root, first = False):
-    # Setup
-    s_puuid = get_puuid(s_name, s_server)
-    s_challenges = get_challenges(s_puuid, s_server)
-    if first :
-        arr = former_arr = old_arr
-    else:
-        arr, former_arr = format_array_update(s_challenges, old_arr, s_server)
-    s_progress  = get_progress(former_arr)
+        # Set column widths
+        self.result_tree.column("name", width=175, minwidth=168)
+        self.result_tree.column("description", width=530, minwidth=0)
+        self.result_tree.column("rank", width=92, minwidth=92)
+        self.result_tree.column("points", width=90, minwidth=100)
+        self.result_tree.column("to_master", width=100, minwidth=100)
 
-    for widget in root.winfo_children():
-        widget.destroy()
+        # Set column headings
+        self.result_tree.heading("name", text="Name")
+        self.result_tree.heading("description", text="Description")
+        self.result_tree.heading("rank", text="Rank")
+        self.result_tree.heading("points", text="Points")
+        self.result_tree.heading("to_master", text="Points to Master")
 
-    # Create a grid layout
-    grid = tk.Frame(root)
-    grid.pack(padx=5, pady=5)
-    root.update()
-    
-    # Add column names to the grid
-    column_names = ["CHALLENGE NAME", "DESCRIPTION", "CURRENT RANK", "CURRENT POINTS", "POINTS TO MASTER", "MASTER POINTS"]
-    for i, name in enumerate(column_names):
-        tk.Label(grid, text=name, font=("Verdana", 12, "bold"), justify="left").grid(row=0, column=i)
-    root.update()
-    
-    # Add array elements to the grid
-    for i in range(arr.shape[0]):
-        for j in range(arr.shape[1]):
-            tk.Label(grid, text=arr[i, j], justify="left").grid(row=i+1, column=j)
-    root.update()
-    
-    # Progress bar
-    progress = tk.DoubleVar()  # Create a DoubleVar to hold the progress value
-    progress_bar = ttk.Progressbar(root, variable=progress, maximum=100, mode='determinate', length=int(root.winfo_width() * 0.8))
-    progress_bar.pack(pady=10)  # Add progress bar to the GUI, with some padding below it
-    # Add label to display progress percentage in the center of the progress bar
-    progress_label = tk.Label(progress_bar, text='', font=("Verdana", 10))
-    progress_label.place(relx=0.5, rely=0.5, anchor="center")
-    progress.set(s_progress)  # Update progress bar with new value
-    progress_label.configure(text=f"{int(s_progress)}%")  # Update progress label with new value
-    root.update()
-    
-    # Refresh button
-    def disable_refresh_button():
-        refresh_button.configure(state='disabled')
-        countdown_seconds = 60
-        def update_countdown():
-            nonlocal countdown_seconds
-            countdown_seconds -= 1
-            if countdown_seconds > 0:
-                refresh_button.configure(text=f"Wait {countdown_seconds} sec")
-                root.after(1000, update_countdown)
-            else:
-                refresh_button.configure(text="Refresh Data", state='normal')
-        update_countdown()
+        self.result_tree.tag_configure('oddrow', background='#f0f0f0')
 
-    def enable_refresh_button():
-        refresh_button.configure(state='normal', text="Refresh Data")
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.frame, length=200, mode="determinate", variable=self.progress_var)
+        self.progress_bar.grid(column=0, row=3, columnspan=3, sticky=(tk.W, tk.E))
+        
+        self.progress_label = ttk.Label(self.frame, text="0%", anchor="center")
+        self.progress_label.grid(column=0, row=3, columnspan=3)
 
-    def refresh_b():
-        refresh(s_name, format_array(s_challenges, s_server), s_server, s_progress, root)
-    
-    refresh_button = tk.Button(root, text="Refresh Data", command=refresh_b)
-    refresh_button.pack(pady=10)
-    disable_refresh_button()
-    root.after(60000, enable_refresh_button)
-    root.update()
+        self.refresh_button = ttk.Button(self.frame, text="Refresh Data", command=self.refresh_data, state="disabled")
+        self.refresh_button.grid(column=0, row=4, columnspan=3)
 
-    root.mainloop()
+    def load_previous_searches(self):
+        if os.path.exists('previous_searches.json'):
+            with open('previous_searches.json', 'r') as f:
+                previous_searches = json.load(f)
+                self.summoner_entry['values'] = previous_searches.get('summoner_names', [])
+                self.tag_entry['values'] = previous_searches.get('tag_lines', [])
 
-# This function launches the display window with a given summoner name that exists
-def launch_app(s_name, s_server, root_old):
-    # Setup
-    s_puuid = get_puuid(s_name, s_server)
-    s_challenges = get_challenges(s_puuid, s_server)
-    arr = format_array(s_challenges, s_server)
-    s_progress  = get_progress(arr)
+    def save_search(self, summoner_name, tag_line):
+        previous_searches = {}
+        if os.path.exists('previous_searches.json'):
+            with open('previous_searches.json', 'r') as f:
+                previous_searches = json.load(f)
 
-    # create a new window
-    root_old.destroy()
+        summoner_names = previous_searches.get('summoner_names', [])
+        tag_lines = previous_searches.get('tag_lines', [])
+
+        if summoner_name not in summoner_names:
+            summoner_names.append(summoner_name)
+        if tag_line not in tag_lines:
+            tag_lines.append(tag_line)
+
+        previous_searches['summoner_names'] = summoner_names[-10:]  # Keep only the last 10
+        previous_searches['tag_lines'] = tag_lines[-10:]  # Keep only the last 10
+
+        with open('previous_searches.json', 'w') as f:
+            json.dump(previous_searches, f)
+
+        self.summoner_entry['values'] = previous_searches['summoner_names']
+        self.tag_entry['values'] = previous_searches['tag_lines']
+
+    def search_summoner(self):
+        game_name = self.summoner_name.get()
+        tag_line = self.tag_line.get()
+
+        try:
+            puuid = get_puuid(game_name, tag_line)
+            challenges_df = get_challenges(puuid)
+            self.challenges_array = format_array(challenges_df)
+            self.update_display()
+            self.refresh_button["state"] = "normal"
+            self.save_search(game_name, tag_line)
+        except Exception as e:
+            tk.messagebox.showerror("Can't find summoner", f"Verify the information or try again later")
+            
+    def update_display(self):
+        self.result_tree.delete(*self.result_tree.get_children())
+        for i, row in enumerate(self.challenges_array):
+            tags = ('oddrow',) if i % 2 else ()
+            self.result_tree.insert("", "end", values=tuple(row), tags=tags)
+
+        progress = get_progress(self.challenges_array)
+        self.progress_var.set(progress)
+        self.progress_label.config(text=f"{progress:.1f}%")
+
+    def refresh_data(self):
+        self.refresh_button["state"] = "disabled"
+        self.master.after(60000, lambda: self.refresh_button.config(state="normal"))
+        self.search_summoner()
+
+def main():
     root = tk.Tk()
-    root.geometry("1400x650+100+100")  
-    root.title(s_name)
-
-    refresh(s_name, arr, s_server, s_progress, root, first = True)
-
+    app = ChallengeTrackerApp(root)
     root.mainloop()
 
-if __name__ == "__main__" :
-    data_window()
-    # data_window -> user_exists -> launch_app -> get_puuid, get_challenges, get_progress, format_array -> refresh
+if __name__ == "__main__":
+    main()
